@@ -1,0 +1,75 @@
+  ELFuck - ELF ultimate compression kit
+  +-----------------------------------+
+  ELFuck is basicaly compression utility, now extended by ELF password
+  locking and string-burning, including polymorphics features to make
+  pattern detection of protected binaries a bit harder.
+
+  Compression (1-9 level)
+  +---------------------+
+  ELFuck uses excellent Markus F.X.J. Oberhumer's compression algorithm,
+  NRV2E which carries very good compression with tiny decompressor
+  (about 128 bytes!). This algorithm family is stolen from UPX, with
+  difference in that decompression is done in real time; ELFuck will
+  decompress ELF directly to .text/.data segment and executes authentic
+  ELF image from there, on other hand, UPX creates original ELF in /tmp
+  and execve() it, so that we don't need any writeable filesystem at all.
+  Well, I should place note there that it is braindead to pack binaries
+  smaller than 1kb, because ELFuck have to add 128 bytes of decompressor
+  code and about 400 bytes of ELF loader and ELF header. For reference,
+  table with ratios compared to gzip:
+
+	File			Original size	NRV2E	%	gzip
+	--------------------------------------------------------------
+	/bin/bash		512540		245592 (47%)	243346
+	/etc/termcap		700857		224779 (32%!)	225821
+	/bin/rpm (static)	1328424		622559 (46%!)	628622
+	/bin/ls			43740		21537  (49%!)	21569
+	/boot/vmlinux		1296935		562507 (43%)	558392
+
+  you see, in some cases it's better than gzip (well, compression
+  takes more time, however) ...
+
+  Locking (-l option)
+  +-----------------+
+  Because ELFuck is 100%-ly based on stolen ideas, I also implemented
+  this one of BurnEye. Someone may like to disallow other users to
+  use/analyse your binary (public shells, root browsing user's homes).
+  The algorithm is kinda simple, but seems to be pretty effective:
+  We'll select some password; expand it using sha1 to 160 bit key.
+  by this key we'll encrypt, using RC4 algorithm, whole binary
+  (except the decrypting stub, of course). We'll also keep
+  last 32bits of sha1 against original binary, in order to check password.
+  When someone will execute such protected binary; the stub will ask for
+  password, make hash of it and try to decrypt the binary back using
+  this key. Then we'll make a hash of potentially decrypted binary,
+  check it against the value we've saved while creating, and if matches,
+  the binary is decrypted correctly (=right password) and we'll let it
+  run.
+
+  Note, that the locked binary will look for 'EPW' shell variable, in case
+  is there, password will be taken from it instead. This is useful
+  when you've a lot of binaries locked with same password, so you'll just
+  do `export EPW=password`, you'll not be asked for password anymore.
+
+  This kind of protection of binaries is very strong, as someone without
+  password will need to crack RC4 ... Good luck!
+
+  Polymorphism / string burning (-s option)
+  +---------------------------------------+
+  Well, we're also using virus technology for good purposes ;)
+  Using this option (-s) you'll get mutated binary each time,
+  sucessfuly defeating pattern-scanners. However, the polymorphic
+  decryptor will take about 500 bytes ;( For further details
+  on polymorphic engine, look at poly.c
+
+  However, to propagate itself, elfuck always put it's banner into
+  generated ELF's header. To disable this behavior, use -b option.
+
+  ATTENTION!
+  +--------+
+  Backup your target binary before using this utility! The name is not
+  random, the way we're loading ELF binary into memory is not so clean,
+  so things are just getting fucked up sometimes ;)
+
+  Have fun!
+   -sd
